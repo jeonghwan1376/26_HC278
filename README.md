@@ -130,16 +130,13 @@
 
 ---
 
+
 ## 🎬 4. 작품 소개영상
 
-> **영상 링크 등록 필요:** 실제 작품 소개영상의 주소가 제공되지 않아 임의 링크는 넣지 않았습니다.
+[![Virtual to Real 작품 소개영상](https://img.youtube.com/vi/91hM_nrA3qQ/hqdefault.jpg)](https://www.youtube.com/watch?v=91hM_nrA3qQ)
 
-<!-- 아래 예시에서 영상ID를 실제 YouTube 영상 ID로 변경한 뒤 주석을 제거하세요.
-[![Virtual to Real 작품 소개영상]([https://img.youtube.com/vi/영상ID/maxresdefault.jpg)](https://www.youtube.com/watch?v=영상ID](https://www.youtube.com/watch?v=91hM_nrA3qQ))
--->
-
-**추천 영상 구성:** YOLO 제품 인식 → 불량 판독 및 리젝터 제거 → Depth 위치·회전각 추출 → 3축 직교 로봇 적재 → 트레이 추적·자동 공급 → Isaac Sim → 전체 공정 및 통합 GUI
-
+**▶ [작품 소개영상 YouTube에서 시청하기](https://www.youtube.com/watch?v=91hM_nrA3qQ)**
+  
 ---
 
 ## 💻 5. 핵심 소스코드
