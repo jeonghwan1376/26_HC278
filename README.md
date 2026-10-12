@@ -140,10 +140,19 @@
 
 ## 🎬 4. 시스템 구동 영상
 
-[![Virtual to Real 작품 소개영상](https://img.youtube.com/vi/91hM_nrA3qQ/hqdefault.jpg)](https://www.youtube.com/watch?v=91hM_nrA3qQ)
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=91hM_nrA3qQ">
+    <img src="https://img.youtube.com/vi/91hM_nrA3qQ/maxresdefault.jpg" width="720" alt="Virtual to Real 시스템 구동 영상 썸네일">
+  </a>
+</p>
 
-  
----
+<p align="center">
+  <b>
+    <a href="https://www.youtube.com/watch?v=91hM_nrA3qQ">
+      ▶ 시스템 구동 영상 바로가기
+    </a>
+  </b>
+</p>
 
 
 ## 💻 5. 핵심 소스코드
