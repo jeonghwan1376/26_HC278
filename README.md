@@ -139,41 +139,50 @@
   
 ---
 
-## 💻 5. 핵심 소스코드
 
-현재 공개된 [26_HC278 저장소](https://github.com/jeonghwan1376/26_HC278)에 있는 파일을 연결했습니다. 파일별 역할 설명은 제작설계서의 기능 분류를 참고했으며, 일부 구현 세부사항은 코드 최종본과 대조해 확인해야 합니다.
+## 💻 5. 핵심 소스코드
 
 | 파일 | 주요 역할 | 링크 |
 | --- | --- | --- |
-| `yolo.py` | YOLO 기반 제품 인식·불량 판독 관련 영상 처리 | [코드 보기](./yolo.py) |
-| `deapth.py` | Depth 카메라 기반 위치·자세 정보 처리 | [코드 보기](./deapth.py) |
-| `master.py` | 비전 결과, 장치 제어, 통신 및 공정 상태 통합 | [코드 보기](./master.py) |
-| `openrb3.ino` | OpenRB 장치 제어 스케치 | [코드 보기](./openrb3.ino) |
-| `입구 좌표.py` | 위치·좌표 처리 관련 코드 | [코드 보기](./%EC%9E%85%EA%B5%AC%20%EC%A2%8C%ED%91%9C.py) |
-| `best.pt` | YOLO 학습 가중치 | [모델 보기](./best.pt) |
-| `webcam_calibration.npz` | 웹캠 캘리브레이션 데이터 | [데이터 보기](./webcam_calibration.npz) |
+| `yolo.py` | YOLO 기반 제품 인식 및 불량 판독 | [코드 보기](./AI_Vision/yolo.py) |
+| `deapth.py` | Depth 카메라 기반 위치·회전각 처리 | [코드 보기](./AI_Vision/deapth.py) |
+| `master.py` | 중앙 통합 제어 및 데이터 통신 | [코드 보기](./Control/master.py) |
+| `isaac.py` | Isaac Sim 디지털 트윈 연동 | [코드 보기](./Digital_Twin/isaac.py) |
+| `openrb3.ino` | OpenRB 그리퍼 회전 제어 | [코드 보기](./OpenRB/openrb3.ino) |
+| `입구 좌표.py` | 위치·좌표 처리 | [코드 보기](./AI_Vision/입구%20좌표.py) |
+| `best.pt` | YOLO 학습 모델 | [모델 보기](./AI_Vision/best.pt) |
+| `webcam_calibration.npz` | 카메라 보정 데이터 | [데이터 보기](./AI_Vision/webcam_calibration.npz) |
+| `MCU/` | STM32 프로젝트 소스코드 | [폴더 보기](./MCU/) |
 
-### 5-1. AI 비전 기반 검사 — [`yolo.py`](./yolo.py)
+### 5-1. AI 비전 기반 검사 — [`yolo.py`](./AI_Vision/yolo.py)
 
-- 제품과 불량 영역을 실시간 검출하고 정상·불량 판정 결과를 후속 공정으로 전달
-- 설계서상 ByteTrack 제품 추적과 ROI 기반 검사 안정화 기능을 포함
+- YOLOv8 기반 제품 인식 및 정상·불량 판독
+- ByteTrack 기반 객체 추적과 검사 ROI 적용
 
-### 5-2. Depth 기반 위치·회전각 인식 — [`deapth.py`](./deapth.py)
+### 5-2. Depth 기반 위치·회전각 인식 — [`deapth.py`](./AI_Vision/deapth.py)
 
-- 정상 제품의 위치·회전각을 산출하고 적재 목표 좌표 생성에 활용
-- 측정 좌표를 3축 직교 로봇 작업 좌표계에 맞춰 연동
+- 제품의 위치와 회전각 추출
+- 로봇 작업 좌표계 연동
 
-### 5-3. 중앙 통합 제어 — [`master.py`](./master.py)
+### 5-3. 중앙 통합 제어 — [`master.py`](./Control/master.py)
 
-- 비전 검사 결과와 로봇·리젝터·트레이 로더 제어 흐름 연결
-- TCP·UART 통신을 활용한 장치 데이터 및 공정 상태 연동
-- 실물 공정과 Isaac Sim 기반 디지털 트윈의 상태 연계
+- 검사 결과와 장치 제어 흐름 통합
+- TCP/IP 및 UART 통신 연동
 
-### 5-4. 그리퍼 구동 및 하드웨어 제어 — [`openrb3.ino`](./openrb3.ino)
+### 5-4. 디지털 트윈 — [`isaac.py`](./Digital_Twin/isaac.py)
 
-- OpenRB 기반 그리퍼 회전 및 장치 구동과 관련된 제어 스케치
+- NVIDIA Isaac Sim 기반 공정 시뮬레이션
+- 실제 장비와 디지털 트윈 상태 연계
 
----
+### 5-5. 그리퍼 제어 — [`openrb3.ino`](./OpenRB/openrb3.ino)
+
+- OpenRB 기반 그리퍼 회전 제어
+
+### 5-6. STM32 MCU — [MCU 폴더](./MCU/)
+
+- 컨베이어, 3축 직교 로봇, 리젝터 및 트레이 로더 제어
+- STM32 프로젝트 코드 및 설정 파일
+  
 
 ### 📌 README 제출 전 확인할 사항
 
