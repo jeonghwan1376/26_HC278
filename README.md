@@ -139,11 +139,10 @@
 ---
 
 
-## 🎬 4. 작품 소개영상
+## 🎬 4. 시스템 구동 영상
 
 [![Virtual to Real 작품 소개영상](https://img.youtube.com/vi/91hM_nrA3qQ/hqdefault.jpg)](https://www.youtube.com/watch?v=91hM_nrA3qQ)
 
-**▶ [작품 소개영상 YouTube에서 시청하기](https://www.youtube.com/watch?v=91hM_nrA3qQ)**
   
 ---
 
