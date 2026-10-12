@@ -107,18 +107,7 @@
 *그림 2. 소프트웨어 플로우차트*
   
 
-### 3-2. 시스템 통신 구성
 
-```mermaid
-flowchart LR
-    A[웹캠 / YOLOv8] -->|TCP| C[중앙 제어 PC]
-    B[Depth 카메라] -->|TCP| C
-    C <-->|UART| D[STM32 MCU]
-    C <-->|통신 연동| E[OpenRB / 그리퍼 회전 제어]
-    D --> F[컨베이어 / 리젝터 / 로봇 / 트레이 로더]
-    C <-->|TCP| G[NVIDIA Isaac Sim]
-    C --> H[통합 모니터링 UI]
-```
 
 ### 3-3. 하드웨어 구성
 
