@@ -172,7 +172,6 @@
 ### 5-1. AI 비전 기반 검사 — [`yolo.py`](./AI_Vision/yolo.py)
 
 - YOLOv8 기반 제품 인식 및 정상·불량 판독
-- ByteTrack 기반 객체 추적과 검사 ROI 적용
 
 ### 5-2. Depth 기반 위치·회전각 인식 — [`deapth.py`](./AI_Vision/deapth.py)
 
