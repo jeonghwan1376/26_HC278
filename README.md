@@ -1,8 +1,7 @@
 # Virtual to Real 디지털 트윈 기반 물류 적재 공정의 AI 동작 최적화 및 검증
 
 > **2026 한이음 드림업 | 프로젝트 번호: 26_HC278**  
-> AI Vision-Based Product Inspection, Sorting and Stacking System
-
+> AI-Based Motion Optimization and Validation of Logistics Loading Processes Using a Virtual-to-Real Digital Twin
 ---
 
 ## 💡 1. 프로젝트 개요
