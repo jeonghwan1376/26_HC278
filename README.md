@@ -216,7 +216,7 @@ TCP/IP 및 UART 통신 기반 공정 통합 제어
 
 NVIDIA Isaac Sim 기반 실물 공정 연동 및 시뮬레이션
 
-![Isaac Sim 핵심 소스코드](./images/그림8.jpg)
+![Isaac Sim 핵심 소스코드](./images/그림7.jpg)
 
 *Fig. 8. Digital Twin Integration Code*
 
@@ -226,7 +226,7 @@ NVIDIA Isaac Sim 기반 실물 공정 연동 및 시뮬레이션
 
 FreeRTOS 기반 다축 모션 제어 및 장치 구동
 
-![STM32 핵심 소스코드](./images/code_mcu.png)
+![STM32 핵심 소스코드](./images/그림8.jpg)
 
 *Fig. 9. STM32 Motion Control Code*
 
