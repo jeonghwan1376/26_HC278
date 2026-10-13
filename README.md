@@ -236,7 +236,7 @@ FreeRTOS 기반 다축 모션 제어 및 장치 구동
 
 제품 회전각 보정을 위한 Dynamixel 제어
 
-![OpenRB 핵심 소스코드](./images/code_openrb.png)
+![OpenRB 핵심 소스코드](./images/그림9.jpg)
 
 *Fig. 10. OpenRB Gripper Control Code*
 
