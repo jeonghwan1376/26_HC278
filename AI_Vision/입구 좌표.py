@@ -1,4 +1,4 @@
-
+#전송
 import cv2
 import numpy as np
 import pyrealsense2 as rs
@@ -55,7 +55,7 @@ BACKGROUND_INPAINT_RADIUS = 7
 BACKGROUND_MEDIAN_BLUR_SIZE = 5
 
 # 배경보다 현재 물체가 가까워진 정도[m]
-MIN_DEPTH_DIFF = 0.006
+MIN_DEPTH_DIFF = 0.0035
 MAX_DEPTH_DIFF = 0.400
 BACKGROUND_VALID_MIN = 50
 
@@ -94,6 +94,22 @@ COLOR_OPEN_SIZE = 3
 COLOR_CLOSE_SIZE = 5
 DEPTH_COLOR_SUPPORT_DILATE_SIZE = 5
 
+# =========================================================
+# 새로 접은 박스의 부분 마스크 방지
+# =========================================================
+# 컬러 마스크를 픽셀 단위 AND 조건으로 쓰지 않고,
+# 컬러 변화가 일부라도 겹치는 Depth 연결 성분 전체를 유지한다.
+USE_COLOR_COMPONENT_SUPPORT = True
+COLOR_COMPONENT_MIN_OVERLAP_PIXEL = 40
+COLOR_COMPONENT_MIN_OVERLAP_RATIO = 0.005
+
+# 컬러 결합 결과가 원래 Depth 마스크보다 지나치게 작으면
+# 반사/조명 문제로 판단하고 Depth 마스크로 자동 복귀한다.
+USE_DEPTH_MASK_FALLBACK = True
+DEPTH_MASK_FALLBACK_MIN_RAW_AREA = 25000
+DEPTH_MASK_FALLBACK_MIN_KEEP_RATIO = 0.45
+DEPTH_MASK_FALLBACK_CLOSE_SIZE = 11
+
 FINAL_MASK_ERODE_SIZE = 3
 FINAL_MASK_ERODE_ITERATIONS = 0
 
@@ -109,8 +125,28 @@ MAX_AREA = 99999999
 MIN_RECT_SHORT_SIDE = 50
 MIN_RECT_LONG_SIDE = 120
 
+# 작은 반사 조각이 안정화되어 Isaac Sim으로 전송되는 것을 막는다.
+# 화면 표시는 가능하지만 아래 크기보다 작으면 전송하지 않는다.
+MIN_SEND_RECT_SHORT_SIDE = 130
+MIN_SEND_RECT_LONG_SIDE = 200
+MIN_SEND_RECT_AREA = 30000
+
 REQUIRE_FULL_BOX_IN_ROI = True
 ROI_INNER_MARGIN = 2
+
+# =========================================================
+# 다중 박스 one-shot 처리 설정
+# =========================================================
+# 이미 전송한 앞 박스를 제외하고, 뒤에 들어온 새 박스를 이어서 전송한다.
+MULTI_OBJECT_ENABLE = True
+
+# 마스크에 여러 제품이 있을 때 작은 노이즈만 제거하고 제품 성분은 모두 유지
+MULTI_COMPONENT_MIN_AREA = 500
+
+# 이미 Isaac Sim으로 전송한 제품을 다음 프레임에서 다시 선택하지 않기 위한 추적값
+SENT_OBJECT_MATCH_DISTANCE_PIXEL = 110.0
+SENT_OBJECT_MIN_AREA_SIMILARITY = 0.45
+SENT_OBJECT_FORGET_SEC = 1.2
 
 # =========================================================
 # Pose rect 복원 설정 - 정밀 바운딩 버전
@@ -300,7 +336,7 @@ MOVING_MAX_CENTER_STEP_PIXEL = 35.0
 # 프레임 사이 속도가 갑자기 크게 달라지는 잘못된 검출 방지
 MOVING_MAX_STEP_CHANGE_PIXEL = 20.0
 
-OBJECT_LOST_UNLOCK_TIME = 0.5
+OBJECT_LOST_UNLOCK_TIME = 1.5
 
 SMOOTH_ALPHA = 0.35
 CENTER_DEADBAND_PIXEL = 3.0
@@ -357,6 +393,10 @@ geometry_yaw_hist = deque(maxlen=GEOMETRY_LOCK_FRAME_REQUIRED)
 # 큰 불량에서 최대 내접 사각형 후보가 프레임마다 바뀌지 않도록
 # 이전 프레임의 정규화된 내접 사각형을 기억한다.
 last_defect_inner_rect_norm = None
+
+# 이미 Isaac Sim으로 전송한 제품의 ROI 내부 중심/크기를 기억한다.
+# 전송된 앞 박스는 계속 위치만 갱신하고 새 바운딩 대상으로는 제외한다.
+sent_object_tracks = {}
 
 yaw_hist = deque(maxlen=YAW_STABLE_FRAME_REQUIRED)
 cx_hist = deque(maxlen=YAW_STABLE_FRAME_REQUIRED)
@@ -743,7 +783,7 @@ def clean_depth_mask(mask):
     cleaned = cv2.medianBlur(mask, 3)
     cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_OPEN, open_kernel, iterations=1)
     cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, close_kernel, iterations=1)
-    cleaned = keep_largest_component(cleaned)
+    cleaned = keep_components_over_area(cleaned, MULTI_COMPONENT_MIN_AREA)
     cleaned = fill_internal_holes(cleaned)
 
     # 최종 외곽을 안쪽으로 조금 줄여 배경 경계가 포함되지 않게 한다.
@@ -757,7 +797,7 @@ def clean_depth_mask(mask):
         erode_kernel,
         iterations=FINAL_MASK_ERODE_ITERATIONS
     )
-    cleaned = keep_largest_component(cleaned)
+    cleaned = keep_components_over_area(cleaned, MULTI_COMPONENT_MIN_AREA)
     cleaned = fill_internal_holes(cleaned)
     return cleaned
 
@@ -799,34 +839,158 @@ def build_color_change_mask(current_bgr, background_bgr):
     return color_mask
 
 
+def keep_depth_components_supported_by_color(
+    depth_mask,
+    color_support
+):
+    """
+    컬러 변화와 일부라도 겹치는 Depth 연결 성분 전체를 유지한다.
+
+    기존 픽셀 단위 AND 방식은 반사되는 은색 박스에서 컬러 마스크가
+    부분적으로만 생성될 경우 실제 박스 전체를 작은 조각으로 잘라냈다.
+    """
+    if depth_mask is None or depth_mask.size == 0:
+        return depth_mask
+
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(
+        depth_mask,
+        connectivity=8
+    )
+
+    result = np.zeros_like(depth_mask)
+
+    for label_index in range(1, count):
+        component_area = int(
+            stats[label_index, cv2.CC_STAT_AREA]
+        )
+
+        if component_area <= 0:
+            continue
+
+        component = labels == label_index
+        overlap_count = int(
+            np.count_nonzero(
+                component & (color_support > 0)
+            )
+        )
+
+        overlap_ratio = (
+            float(overlap_count)
+            / float(component_area)
+        )
+
+        if (
+            overlap_count >= COLOR_COMPONENT_MIN_OVERLAP_PIXEL
+            or overlap_ratio >= COLOR_COMPONENT_MIN_OVERLAP_RATIO
+        ):
+            result[component] = 255
+
+    return result
+
+
+def build_depth_fallback_mask(depth_mask):
+    """
+    컬러 결합이 박스 일부만 남겼을 때 사용할 Depth 전용 복구 마스크.
+    작은 깊이 끊김만 CLOSE로 연결한다.
+    """
+    if depth_mask is None:
+        return depth_mask
+
+    close_size = odd_size(
+        DEPTH_MASK_FALLBACK_CLOSE_SIZE
+    )
+    close_kernel = cv2.getStructuringElement(
+        cv2.MORPH_RECT,
+        (close_size, close_size)
+    )
+
+    fallback = cv2.morphologyEx(
+        depth_mask,
+        cv2.MORPH_CLOSE,
+        close_kernel,
+        iterations=1
+    )
+    fallback = fill_internal_holes(fallback)
+    return fallback
+
+
 def combine_depth_and_color_mask(depth_mask, color_mask):
     """
-    깊이 변화와 컬러 변화를 동시에 만족하는 영역을 외곽 기준으로 사용한다.
-    컬러 마스크는 깊이 물체 주변에서만 내부 결손을 보충한다.
+    Depth를 기본 외곽으로 사용하고 컬러는 제품 성분 확인용으로 사용한다.
+
+    1. 컬러 변화와 겹치는 Depth 연결 성분 전체를 유지
+    2. Depth 주변의 내부 결손만 컬러로 보충
+    3. 결과가 원래 Depth보다 지나치게 작으면 Depth 전용 마스크로 복귀
     """
     if color_mask is None:
         return depth_mask.copy()
+
+    raw_depth_area = int(
+        cv2.countNonZero(depth_mask)
+    )
 
     color_support_kernel = cv2.getStructuringElement(
         cv2.MORPH_ELLIPSE,
         (5, 5)
     )
-    color_support = cv2.dilate(color_mask, color_support_kernel, iterations=1)
+    color_support = cv2.dilate(
+        color_mask,
+        color_support_kernel,
+        iterations=1
+    )
 
-    # 배경에서 깊이만 흔들린 픽셀은 제거한다.
-    depth_core = cv2.bitwise_and(depth_mask, color_support)
+    if USE_COLOR_COMPONENT_SUPPORT:
+        depth_core = keep_depth_components_supported_by_color(
+            depth_mask,
+            color_support
+        )
+    else:
+        depth_core = cv2.bitwise_and(
+            depth_mask,
+            color_support
+        )
 
-    support_size = odd_size(DEPTH_COLOR_SUPPORT_DILATE_SIZE)
+    support_size = odd_size(
+        DEPTH_COLOR_SUPPORT_DILATE_SIZE
+    )
     depth_support_kernel = cv2.getStructuringElement(
         cv2.MORPH_ELLIPSE,
         (support_size, support_size)
     )
-    depth_support = cv2.dilate(depth_core, depth_support_kernel, iterations=1)
+    depth_support = cv2.dilate(
+        depth_core,
+        depth_support_kernel,
+        iterations=1
+    )
 
-    # 물체 안쪽의 깊이 누락만 컬러 변화로 보충한다.
-    color_fill = cv2.bitwise_and(color_mask, depth_support)
-    return cv2.bitwise_or(depth_core, color_fill)
+    color_fill = cv2.bitwise_and(
+        color_mask,
+        depth_support
+    )
+    combined = cv2.bitwise_or(
+        depth_core,
+        color_fill
+    )
 
+    combined_area = int(
+        cv2.countNonZero(combined)
+    )
+
+    if (
+        USE_DEPTH_MASK_FALLBACK
+        and raw_depth_area >= DEPTH_MASK_FALLBACK_MIN_RAW_AREA
+    ):
+        keep_ratio = (
+            float(combined_area)
+            / float(max(1, raw_depth_area))
+        )
+
+        if keep_ratio < DEPTH_MASK_FALLBACK_MIN_KEEP_RATIO:
+            return build_depth_fallback_mask(
+                depth_mask
+            )
+
+    return combined
 
 def build_safe_hole_mask(depth_mask, bg_valid, cur_valid):
     raw_hole_mask = np.zeros(depth_mask.shape, dtype=np.uint8)
@@ -861,52 +1025,231 @@ def contour_area_or_zero(cnt):
     return float(cv2.contourArea(cnt))
 
 
-def choose_best_contour(contours, roi_w, roi_h):
-    global last_valid_cx, last_valid_cy
-
+def build_valid_contour_items(contours, roi_w, roi_h):
+    """제품 후보 contour를 중심, 크기, 면적 정보와 함께 반환한다."""
     valid_items = []
 
     for cnt in contours:
-        area = cv2.contourArea(cnt)
+        area = float(cv2.contourArea(cnt))
+
         if area < MIN_AREA or area > MAX_AREA:
             continue
 
         if REQUIRE_FULL_BOX_IN_ROI:
-            if not is_contour_fully_inside_roi_local(cnt, roi_w, roi_h, ROI_INNER_MARGIN):
+            if not is_contour_fully_inside_roi_local(
+                cnt,
+                roi_w,
+                roi_h,
+                ROI_INNER_MARGIN
+            ):
                 continue
 
         rect = cv2.minAreaRect(cnt)
         (cx, cy), (rw, rh), _ = rect
-        rect_area = rw * rh
-        if rect_area <= 0:
+        rect_area = float(rw) * float(rh)
+
+        if rect_area <= 0.0:
             continue
 
-        short_side = min(rw, rh)
-        long_side = max(rw, rh)
-        if short_side < MIN_RECT_SHORT_SIDE or long_side < MIN_RECT_LONG_SIDE:
+        short_side = min(float(rw), float(rh))
+        long_side = max(float(rw), float(rh))
+
+        if (
+            short_side < MIN_RECT_SHORT_SIDE
+            or long_side < MIN_RECT_LONG_SIDE
+        ):
             continue
 
         fill_ratio = area / rect_area
 
-        # 이전 중심이 있으면 가까운 후보 우선, 없으면 ROI 중심에 가까운 후보 우선
-        if last_valid_cx is None or last_valid_cy is None:
-            ref_x = roi_w / 2.0
-            ref_y = roi_h / 2.0
-        else:
-            ref_x = last_valid_cx
-            ref_y = last_valid_cy
+        valid_items.append({
+            "cnt": cnt,
+            "cx": float(cx),
+            "cy": float(cy),
+            "rw": float(rw),
+            "rh": float(rh),
+            "area": float(area),
+            "fill_ratio": float(fill_ratio)
+        })
 
-        dist = ((cx - ref_x) ** 2 + (cy - ref_y) ** 2) ** 0.5
+    return valid_items
 
-        # 특정 가로세로 비율을 강제하지 않고 면적, 채움률, 이전 위치만 사용
-        score = area + area * fill_ratio * 0.7 - dist * 35.0
-        valid_items.append((score, cnt))
 
-    if len(valid_items) == 0:
+def clear_sent_object_tracks():
+    """배경 재설정 또는 수동 초기화 시 전송 완료 제품 기억을 모두 삭제한다."""
+    sent_object_tracks.clear()
+
+
+def register_sent_object(object_id, contour_item):
+    """
+    방금 Isaac Sim으로 보낸 제품을 전송 완료 목록에 등록한다.
+    다음 프레임부터 이 제품과 매칭되는 contour는 바운딩 대상에서 제외된다.
+    """
+    if contour_item is None:
+        return
+
+    sent_object_tracks[int(object_id)] = {
+        "cx": float(contour_item["cx"]),
+        "cy": float(contour_item["cy"]),
+        "area": float(contour_item["area"]),
+        "vx": 0.0,
+        "vy": 0.0,
+        "last_seen": time.time()
+    }
+
+
+def update_sent_object_tracks(valid_items):
+    """
+    전송 완료 제품을 현재 contour들과 매칭하고 해당 contour 인덱스를 반환한다.
+
+    전송 완료 제품은 컨베이어를 따라 움직여도 중심을 계속 갱신하지만,
+    새 Isaac CREATE_BOX 대상으로는 다시 선택하지 않는다.
+    """
+    if not MULTI_OBJECT_ENABLE:
+        return set()
+
+    now = time.time()
+    ignored_indices = set()
+    used_indices = set()
+
+    for object_id, track in list(sent_object_tracks.items()):
+        predicted_cx = float(track["cx"]) + float(track.get("vx", 0.0))
+        predicted_cy = float(track["cy"]) + float(track.get("vy", 0.0))
+        previous_area = max(1.0, float(track["area"]))
+
+        best_index = None
+        best_cost = None
+
+        for index, item in enumerate(valid_items):
+            if index in used_indices:
+                continue
+
+            current_area = max(1.0, float(item["area"]))
+            area_similarity = (
+                min(previous_area, current_area)
+                / max(previous_area, current_area)
+            )
+
+            if area_similarity < SENT_OBJECT_MIN_AREA_SIMILARITY:
+                continue
+
+            dx = float(item["cx"]) - predicted_cx
+            dy = float(item["cy"]) - predicted_cy
+            distance = float((dx * dx + dy * dy) ** 0.5)
+
+            if distance > SENT_OBJECT_MATCH_DISTANCE_PIXEL:
+                continue
+
+            # 거리 우선, 크기 차이는 보조 비용으로 사용
+            cost = (
+                distance
+                + (1.0 - area_similarity) * 40.0
+            )
+
+            if best_cost is None or cost < best_cost:
+                best_cost = cost
+                best_index = index
+
+        if best_index is not None:
+            item = valid_items[best_index]
+
+            old_cx = float(track["cx"])
+            old_cy = float(track["cy"])
+            new_cx = float(item["cx"])
+            new_cy = float(item["cy"])
+
+            track["vx"] = 0.5 * float(track.get("vx", 0.0)) + 0.5 * (new_cx - old_cx)
+            track["vy"] = 0.5 * float(track.get("vy", 0.0)) + 0.5 * (new_cy - old_cy)
+            track["cx"] = new_cx
+            track["cy"] = new_cy
+            track["area"] = float(item["area"])
+            track["last_seen"] = now
+
+            used_indices.add(best_index)
+            ignored_indices.add(best_index)
+
+        elif now - float(track["last_seen"]) > SENT_OBJECT_FORGET_SEC:
+            del sent_object_tracks[object_id]
+
+    return ignored_indices
+
+
+def choose_best_contour(contours, roi_w, roi_h):
+    """
+    아직 전송하지 않은 제품 중 하나를 선택한다.
+
+    기존에는 last_valid 중심에 가까운 앞 박스를 계속 선택했지만,
+    이제 전송 완료 제품 contour는 먼저 제외한 뒤 다음 제품을 선택한다.
+    """
+    global last_valid_cx, last_valid_cy
+
+    valid_items = build_valid_contour_items(
+        contours,
+        roi_w,
+        roi_h
+    )
+
+    ignored_indices = update_sent_object_tracks(valid_items)
+
+    available_items = [
+        item
+        for index, item in enumerate(valid_items)
+        if index not in ignored_indices
+    ]
+
+    if len(available_items) == 0:
         return None
 
-    valid_items.sort(key=lambda x: x[0], reverse=True)
-    return valid_items[0][1]
+    if last_valid_cx is None or last_valid_cy is None:
+        ref_x = roi_w / 2.0
+        ref_y = roi_h / 2.0
+    else:
+        ref_x = float(last_valid_cx)
+        ref_y = float(last_valid_cy)
+
+    for item in available_items:
+        dx = float(item["cx"]) - ref_x
+        dy = float(item["cy"]) - ref_y
+        distance = float((dx * dx + dy * dy) ** 0.5)
+
+        item["score"] = (
+            float(item["area"])
+            + float(item["area"]) * float(item["fill_ratio"]) * 0.7
+            - distance * 35.0
+        )
+
+    available_items.sort(
+        key=lambda item: item["score"],
+        reverse=True
+    )
+
+    return available_items[0]
+
+def keep_components_over_area(mask, minimum_area):
+    """
+    이진 마스크에서 minimum_area 이상인 연결 성분을 모두 유지한다.
+
+    박스가 2개 동시에 들어오면 기존 keep_largest_component()는
+    작은 쪽 제품을 완전히 삭제하므로 다중 박스 처리가 불가능했다.
+    """
+    if mask is None or mask.size == 0:
+        return mask
+
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(
+        mask,
+        connectivity=8
+    )
+
+    result = np.zeros_like(mask)
+    minimum_area = max(1, int(minimum_area))
+
+    for label_index in range(1, count):
+        area = int(stats[label_index, cv2.CC_STAT_AREA])
+
+        if area >= minimum_area:
+            result[labels == label_index] = 255
+
+    return result
 
 
 def keep_largest_component(mask):
@@ -3292,11 +3635,23 @@ def main():
                 mask = clean_depth_mask(mask)
                 display_mask = mask.copy()
 
-                contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                best_cnt = choose_best_contour(contours, roi_w, roi_h)
+                contours, _ = cv2.findContours(
+                    mask,
+                    cv2.RETR_EXTERNAL,
+                    cv2.CHAIN_APPROX_SIMPLE
+                )
+                selected_item = choose_best_contour(
+                    contours,
+                    roi_w,
+                    roi_h
+                )
 
-                if best_cnt is not None:
-                    pose_rect_local, pose_mask = build_pose_rect_from_contour(best_cnt, mask.shape)
+                if selected_item is not None:
+                    best_cnt = selected_item["cnt"]
+                    pose_rect_local, pose_mask = build_pose_rect_from_contour(
+                        best_cnt,
+                        mask.shape
+                    )
                     display_mask = pose_mask.copy()
 
                     if pose_rect_local is not None:
@@ -3406,9 +3761,43 @@ def main():
                             2
                         )
 
+                        size_status = (
+                            "FULL SIZE"
+                            if (
+                                current_short >= MIN_SEND_RECT_SHORT_SIDE
+                                and current_long >= MIN_SEND_RECT_LONG_SIDE
+                                and current_short * current_long >= MIN_SEND_RECT_AREA
+                            )
+                            else "PARTIAL - SEND BLOCK"
+                        )
+                        cv2.putText(
+                            display,
+                            size_status,
+                            (20, 265),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.65,
+                            (
+                                (0, 255, 0)
+                                if size_status == "FULL SIZE"
+                                else (0, 0, 255)
+                            ),
+                            2
+                        )
+
                         # one-shot Isaac 전송
+                        full_box_size_valid = (
+                            current_short >= MIN_SEND_RECT_SHORT_SIDE
+                            and current_long >= MIN_SEND_RECT_LONG_SIDE
+                            and (
+                                current_short * current_long
+                                >= MIN_SEND_RECT_AREA
+                            )
+                        )
+
                         if (
                             not one_shot_locked
+                            and geometry_locked
+                            and full_box_size_valid
                             and is_detection_stable()
                             and z_s > 0
                             and robot_x_mm is not None
@@ -3423,16 +3812,28 @@ def main():
                                 target_deg
                             )
                             if sent_ok:
-                                one_shot_locked = True
-                                locked_cx = cx_s
-                                locked_cy = cy_s
-                                locked_z_m = z_s
-                                locked_yaw = target_deg
+                                sent_id = int(current_object_id)
+
+                                register_sent_object(
+                                    sent_id,
+                                    selected_item
+                                )
+
+                                print(
+                                    f"[ONE SHOT COMPLETE] "
+                                    f"Isaac ID={sent_id} | "
+                                    "이 제품은 이후 바운딩/재전송에서 제외"
+                                )
+
+                                # 전송 완료 즉시 다음 ID로 넘어가고,
+                                # 화면에 남아 있는 앞 박스는 sent_object_tracks로 제외한다.
+                                current_object_id += 1
+                                reset_tracking_state()
+                                last_object_seen_time = time.time()
 
                 else:
                     if time.time() - last_object_seen_time > OBJECT_LOST_UNLOCK_TIME:
-                        if one_shot_locked:
-                            current_object_id += 1
+                        # ID는 전송 성공 순간 이미 증가한다.
                         reset_tracking_state()
 
             # ROI만 표시
@@ -3455,6 +3856,7 @@ def main():
                 auto_background_done = True
 
                 reset_tracking_state()
+                clear_sent_object_tracks()
                 last_object_seen_time = time.time()
 
                 print(
@@ -3471,6 +3873,7 @@ def main():
                 background_capture_active = False
 
                 reset_tracking_state()
+                clear_sent_object_tracks()
                 program_start_time = time.time()
                 auto_background_done = False
 
@@ -3480,10 +3883,16 @@ def main():
                 )
 
             elif key == ord('u'):
-                if one_shot_locked:
-                    current_object_id += 1
                 reset_tracking_state()
-                print(f"one-shot 잠금 해제 | 다음 Isaac ID={current_object_id}")
+                print(
+                    f"현재 후보 추적 초기화 | "
+                    f"다음 Isaac ID={current_object_id}"
+                )
+
+            elif key == ord('c'):
+                clear_sent_object_tracks()
+                reset_tracking_state()
+                print("전송 완료 제품 제외 목록 초기화")
 
             elif key == ord('q') or key == 27:
                 break
