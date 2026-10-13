@@ -113,7 +113,7 @@
 
 ![그림 2. 소프트웨어 플로우차트](./images/그림2.png)
 
-*그림 2. 소프트웨어 플로우차트*
+*Fig. 2. Software Flowchart*
 
   
 
@@ -131,7 +131,7 @@
 
 ![그림 3. 하드웨어 전체 구성도](./images/그림3.png)
 
-*그림 3. 하드웨어 전체 구성도*
+*Fig. 3. Overall Hardware Configuration*
   
 
 ### 3-4. 핵심 알고리즘: 이동 트레이 추적 적재
