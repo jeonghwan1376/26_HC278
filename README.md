@@ -206,7 +206,7 @@ Depth 카메라 기반 제품 위치 및 회전각 추출
 
 TCP/IP 및 UART 통신 기반 공정 통합 제어
 
-![중앙 제어 핵심 소스코드](./images/그림7.jpg)
+![중앙 제어 핵심 소스코드](./images/그림6.jpg)
 
 *Fig. 7. Central Control System Code*
 
