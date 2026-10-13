@@ -175,7 +175,6 @@
 | `openrb3.ino` | OpenRB 그리퍼 회전 제어 | [코드 보기](./OpenRB/openrb3.ino) |
 | `입구 좌표.py` | 위치·좌표 처리 | [코드 보기](./AI_Vision/입구%20좌표.py) |
 | `best.pt` | YOLO 학습 모델 | [모델 보기](./AI_Vision/best.pt) |
-| `webcam_calibration.npz` | 카메라 보정 데이터 | [데이터 보기](./AI_Vision/webcam_calibration.npz) |
 | `MCU/` | STM32 프로젝트 소스코드 | [폴더 보기](./MCU/) |
 
 ### 5-1. AI 비전 기반 검사 — [`yolo.py`](./AI_Vision/yolo.py)
