@@ -177,33 +177,69 @@
 | `best.pt` | YOLO 학습 모델 | [모델 보기](./AI_Vision/best.pt) |
 | `MCU/` | STM32 프로젝트 소스코드 | [폴더 보기](./MCU/) |
 
-### 5-1. AI 비전 기반 검사 — [`yolo.py`](./AI_Vision/yolo.py)
 
-- YOLOv8 기반 제품 인식 및 정상·불량 판독
+## 💻 5. 핵심 소스코드
 
-### 5-2. Depth 기반 위치·회전각 인식 — [`deapth.py`](./AI_Vision/deapth.py)
+### 5-1. AI 비전 기반 제품 검사
 
-- 제품의 위치와 회전각 추출
-- 로봇 작업 좌표계 연동
+YOLOv8 기반 실시간 정상·불량 판별 및 검사 결과 처리
 
-### 5-3. 중앙 통합 제어 — [`master.py`](./Control/master.py)
+![YOLOv8 핵심 소스코드](./images/code_yolo.png)
 
-- 검사 결과와 장치 제어 흐름 통합
-- TCP/IP 및 UART 통신 연동
+*Fig. 4. YOLOv8-Based Defect Detection Code*
 
-### 5-4. 디지털 트윈 — [`isaac.py`](./Digital_Twin/isaac.py)
+**[▶ 전체 소스코드 보기](./AI_Vision/yolo.py)**
 
-- NVIDIA Isaac Sim 기반 공정 시뮬레이션
-- 실제 장비와 디지털 트윈 상태 연계
+### 5-2. Depth 기반 위치·회전각 인식
 
-### 5-5. 그리퍼 제어 — [`openrb3.ino`](./OpenRB/openrb3.ino)
+Depth 카메라 기반 제품 위치 및 회전각 추출
 
-- OpenRB 기반 그리퍼 회전 제어
+![Depth 핵심 소스코드](./images/code_depth.png)
 
-### 5-6. STM32 MCU — [MCU 폴더](./MCU/)
+*Fig. 5. Depth-Based Position Recognition Code*
 
-- 컨베이어, 3축 직교 로봇, 리젝터 및 트레이 로더 제어
-- STM32 프로젝트 코드 및 설정 파일
+**[▶ 전체 소스코드 보기](./AI_Vision/deapth.py)**
+
+### 5-3. 중앙 통합 제어
+
+TCP/IP 및 UART 통신 기반 공정 통합 제어
+
+![중앙 제어 핵심 소스코드](./images/code_master.png)
+
+*Fig. 6. Central Control System Code*
+
+**[▶ 전체 소스코드 보기](./Control/master.py)**
+
+### 5-4. 디지털 트윈 연동
+
+NVIDIA Isaac Sim 기반 실물 공정 연동 및 시뮬레이션
+
+![Isaac Sim 핵심 소스코드](./images/code_isaac.png)
+
+*Fig. 7. Digital Twin Integration Code*
+
+**[▶ 전체 소스코드 보기](./Digital_Twin/isaac.py)**
+
+### 5-5. STM32 임베디드 제어
+
+FreeRTOS 기반 다축 모션 제어 및 장치 구동
+
+![STM32 핵심 소스코드](./images/code_mcu.png)
+
+*Fig. 8. STM32 Motion Control Code*
+
+**[▶ MCU 소스코드 보기](./MCU/)**
+
+### 5-6. OpenRB 그리퍼 제어
+
+제품 회전각 보정을 위한 Dynamixel 제어
+
+![OpenRB 핵심 소스코드](./images/code_openrb.png)
+
+*Fig. 9. OpenRB Gripper Control Code*
+
+**[▶ 전체 소스코드 보기](./OpenRB/openrb3.ino)**
+
   
 
 
