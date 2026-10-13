@@ -178,67 +178,32 @@
 | `MCU/` | STM32 프로젝트 소스코드 | [폴더 보기](./MCU/) |
 
 
+
 ## 💻 5. 핵심 소스코드
 
-### 5-1. AI 비전 기반 제품 검사
+### 5-1. 핵심 소스코드 ①
 
-YOLOv8 기반 실시간 정상·불량 판별 및 검사 결과 처리
+![핵심 소스코드 1](./images/그림4.jpg)
 
-![YOLOv8 핵심 소스코드](./images/code_yolo.png)
+*Fig. 4. Key Source Code 1*
 
-*Fig. 4. YOLOv8-Based Defect Detection Code*
+### 5-2. 핵심 소스코드 ②
 
-**[▶ 전체 소스코드 보기](./AI_Vision/yolo.py)**
+![핵심 소스코드 2](./images/그림5.jpg)
 
-### 5-2. Depth 기반 위치·회전각 인식
+*Fig. 5. Key Source Code 2*
 
-Depth 카메라 기반 제품 위치 및 회전각 추출
+### 5-3. 핵심 소스코드 ③
 
-![Depth 핵심 소스코드](./images/code_depth.png)
+![핵심 소스코드 3](./images/그림7.jpg)
 
-*Fig. 5. Depth-Based Position Recognition Code*
+*Fig. 7. Key Source Code 3*
 
-**[▶ 전체 소스코드 보기](./AI_Vision/deapth.py)**
+### 5-4. 핵심 소스코드 ④
 
-### 5-3. 중앙 통합 제어
+![핵심 소스코드 4](./images/그림8.jpg)
 
-TCP/IP 및 UART 통신 기반 공정 통합 제어
-
-![중앙 제어 핵심 소스코드](./images/code_master.png)
-
-*Fig. 6. Central Control System Code*
-
-**[▶ 전체 소스코드 보기](./Control/master.py)**
-
-### 5-4. 디지털 트윈 연동
-
-NVIDIA Isaac Sim 기반 실물 공정 연동 및 시뮬레이션
-
-![Isaac Sim 핵심 소스코드](./images/code_isaac.png)
-
-*Fig. 7. Digital Twin Integration Code*
-
-**[▶ 전체 소스코드 보기](./Digital_Twin/isaac.py)**
-
-### 5-5. STM32 임베디드 제어
-
-FreeRTOS 기반 다축 모션 제어 및 장치 구동
-
-![STM32 핵심 소스코드](./images/code_mcu.png)
-
-*Fig. 8. STM32 Motion Control Code*
-
-**[▶ MCU 소스코드 보기](./MCU/)**
-
-### 5-6. OpenRB 그리퍼 제어
-
-제품 회전각 보정을 위한 Dynamixel 제어
-
-![OpenRB 핵심 소스코드](./images/code_openrb.png)
-
-*Fig. 9. OpenRB Gripper Control Code*
-
-**[▶ 전체 소스코드 보기](./OpenRB/openrb3.ino)**
+*Fig. 8. Key Source Code 4*
 
   
 
