@@ -38,7 +38,7 @@
 
 ### 1-4. 주요 기능
 
-| 구분&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | 주요 기능&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | 설명&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+| 구분 | 주요 기능 | 설명 |
 |:---|:---|:---|
 | 제품 검사 | AI 비전 판독 | 웹캠과 YOLOv8을 이용하여 정상·불량 제품 구분 |
 | 불량 제거 | 리젝터 구동 | 불량 판정 결과에 따라 리젝터 작동 후 복귀 |
