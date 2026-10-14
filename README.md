@@ -175,7 +175,7 @@
 | `master.py` | 중앙 통합 제어 및 데이터 통신 | [코드 보기](./Control/master.py) |
 | `isaac.py` | Isaac Sim 디지털 트윈 연동 | [코드 보기](./Digital_Twin/isaac.py) |
 | `openrb3.ino` | OpenRB 그리퍼 회전 제어 | [코드 보기](./OpenRB/openrb3.ino) |
-| `입구 좌표.py` | 위치·좌표 처리 | [코드 보기](./AI_Vision/입구%20좌표.py) |
+| `issac sim coordinates.py` | 위치·좌표 처리 | [코드 보기](./Digital_Twin/isaac_sim_coordinates.py) |
 | `best.pt` | YOLO 학습 모델 | [모델 보기](./AI_Vision/best.pt) |
 | `MCU/` | STM32 프로젝트 소스코드 | [폴더 보기](./MCU/) |
 
